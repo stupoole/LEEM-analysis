@@ -92,11 +92,26 @@ class DriftCorrector:
         self.apply_shifts()
         self.plot_stack(self.corrected)
 
+        self.save_stack()
+
     def load_images(self):
-        selected_dir = filedialog.askdirectory(title='Select a folder containing image files')
-        self.original = daim.imread(selected_dir + '\\*.tif')
+        self.load_directory = filedialog.askdirectory(title='Select a folder containing image files')
+        self.original = daim.imread(self.load_directory + '\\*.tif')
 
         print(self.original.dtype)
+
+    def save_stack(self):
+        save_directory = filedialog.asksaveasfilename(title='Save Directory')
+        if save_directory:  # if a folder was selected, don't save otherwise
+            filenames = [file.replace('.tif', '_shifted.tif') for file in os.listdir(self.load_directory)]
+            for filename, image in zip(filenames, self.corrected):
+                target = save_directory + '\\' + filename
+                sk_imsave(target, image)
+                print(f'Image saved as {target}')
+        else:
+            print('Data not saved')
+
+
 
     def calculate_sobel(self, sigma=3):
         sobel = Registration.crop_and_filter(self.original.rechunk({0: self.dE}), sigma=sigma,
@@ -226,6 +241,7 @@ class DriftCorrector:
             plt.savefig('shiftsandweights.pdf', dpi=300)
         plt.show()
         return min_normed_weight
+
 
 
 if __name__ == '__main__':
