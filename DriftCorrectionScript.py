@@ -1,0 +1,236 @@
+import numpy as np
+import os
+import numba
+import time
+
+import dask
+import dask.array as da
+import dask.array.image as daim
+from dask.delayed import delayed
+from dask.distributed import Client, LocalCluster
+
+from scipy.optimize import least_squares
+import scipy.ndimage as ndi
+import scipy.sparse as sp
+from scipy.interpolate import interp1d
+
+from skimage import filters
+from skimage.io import imsave as sk_imsave
+
+import tkinter as tk
+from tkinter import filedialog
+
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
+import Registration
+
+
+class ScrollBarImagePlot(object):
+    def __init__(self, ax, X):
+        self.ax = ax
+        self.ax.set_title('use scroll wheel to navigate images')
+
+        self.X = X
+        self.slices, rows, cols = X.shape
+        self.ind = self.slices // 2
+
+        self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
+        self.update()
+
+    def onscroll(self, event):
+        if event.button == 'up':
+            self.ind = (self.ind + 1) % self.slices
+        else:
+            self.ind = (self.ind - 1) % self.slices
+        self.update()
+
+    def update(self):
+        self.im.set_data(self.X[self.ind, :, :].T)
+        self.ax.set_ylabel('slice %s' % self.ind)
+        self.im.axes.figure.canvas.draw()
+
+
+# Does not have access to self to define this dtype out and fails at infer dtype.
+@da.as_gufunc(signature="(i,j),(2)->(i,j)", output_dtypes=np.float32, vectorize=True)
+def shift_images(image, shift):
+    """Shift `image` by `shift` pixels."""
+    return ndi.shift(image, shift=shift, order=1)
+
+
+class DriftCorrector:
+    def __init__(self, start, stop, stride, dE, fftsize, savefig):
+        self.start = start
+        self.stop = stop
+        self.stride = stride
+        self.dE = dE
+        self.fftsize = fftsize
+        self.savefig = savefig
+        self.Eslice = slice(start, stop, stride)
+        self.z_factor = 1
+        self.root = tk.Tk()
+        self.root.withdraw()
+
+    def apply_corrections(self):
+        self.load_images()
+        self.plot_stack(self.original)
+
+        self.calculate_sobel()
+
+        self.calculate_cross_correlations()
+
+        self.weights, self.argmax = Registration.max_and_argmax(self.correlations)
+
+        self.calculate_half_matrices()
+
+        self.normalise_maximum_weights()
+
+        self.calculate_thresholding()
+
+        self.calculate_shift_vectors()
+
+        self.apply_shifts()
+        self.plot_stack(self.corrected)
+
+    def load_images(self):
+        selected_dir = filedialog.askdirectory(title='Select a folder containing image files')
+        self.original = daim.imread(selected_dir + '\\*.tif')
+
+        print(self.original.dtype)
+
+    def calculate_sobel(self, sigma=3):
+        sobel = Registration.crop_and_filter(self.original.rechunk({0: self.dE}), sigma=sigma,
+                                             finalsize=self.fftsize * 2)
+        self.sobel = (sobel - sobel.mean(axis=(1, 2), keepdims=True))
+
+    def calculate_cross_correlations(self):
+        self.correlations = Registration.dask_cross_corr(self.sobel)
+
+    def calculate_half_matrices(self):
+        t = time.monotonic()
+        self.W, self.DX_DY = Registration.calculate_halfmatrices(self.weights, self.argmax, fftsize=self.fftsize)
+        print(time.monotonic() - t)
+
+    def normalise_maximum_weights(self):
+        self.w_diag = np.atleast_2d(np.diag(self.W))
+        self.W_n = self.W / np.sqrt(self.w_diag.T * self.w_diag)
+
+    def calculate_thresholding(self):
+        # TODO(Stu) Implement GUI elements for thresholding
+        min_norm = 0.15
+        nr = np.arange(self.W.shape[0]) * self.stride + self.start
+
+        self.coords, self.weightmatrix, self.DX, self.DY, self.row_mask = \
+            Registration.threshold_and_mask(min_norm,
+                                            self.W,
+                                            self.DX_DY,
+                                            nr)
+        return 0.15
+
+    def calculate_shift_vectors(self):
+        dx, dy = Registration.calc_shift_vectors(self.DX, self.DY, self.weightmatrix)
+        shifts = np.stack(Registration.interp_shifts(self.coords, [dx, dy], n=self.original.shape[0]),
+                          axis=1)
+        self.neededMargins = np.ceil(shifts.max(axis=0)).astype(int)
+        self.shifts = da.from_array(shifts, chunks=(self.dE, -1))
+
+    def apply_shifts(self):
+        padded = da.pad(self.original.rechunk({0: self.dE}),
+                        ((0, 0),
+                         (0, self.neededMargins[0]),
+                         (0, self.neededMargins[1])
+                         ),
+                        mode='constant'
+                        )
+        self.corrected = shift_images(padded.rechunk({1: -1, 2: -1}), self.shifts)
+
+    def plot_stack(self, images):
+        fig, ax = plt.subplots(1, 1)
+        tracker = ScrollBarImagePlot(ax, images)
+        fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
+        plt.show()
+
+    def plot_corr(self, i, j):
+        # fig = plt.figure(figsize=(8.2, 3.5), constrained_layout=True)
+        fig = plt.figure(figsize=(4, 7), constrained_layout=True)
+        fig.set_constrained_layout_pads(hspace=0.0, wspace=0.06)
+        # gs = mpl.gridspec.GridSpec(2, 3,
+        #                   width_ratios=[1, 1, 2.9],
+        #                   #height_ratios=[4, 1]
+        #                   )
+
+        gs = mpl.gridspec.GridSpec(3, 2,
+                                   height_ratios=[1, 1, 1.8],
+                                   figure=fig,
+                                   )
+
+        ax0 = plt.subplot(gs[0, 0])
+        ax1 = plt.subplot(gs[1, 0])
+        ax2 = plt.subplot(gs[0, 1])
+        ax3 = plt.subplot(gs[1, 1])
+        ax4 = plt.subplot(gs[2, :])  # 2grid((2, 4), (0, 2), rowspan=2, colspan=2)
+        ax0.imshow(self.original[i * self.stride + self.start, (640 - self.fftsize):(640 + self.fftsize),
+                   (512 - self.fftsize):(512 + self.fftsize)].T,
+                   cmap='gray', interpolation='none')
+        ax0.set_title(f'i={i * self.stride + self.start}')
+        ax1.imshow(self.sobel[i, ...].T, cmap='gray')
+        ax2.imshow(self.original[j * self.stride + self.start, (640 - self.fftsize):(640 + self.fftsize),
+                   (512 - self.fftsize):(512 + self.fftsize)].T,
+                   cmap='gray', interpolation='none')
+        ax2.set_title(f'j={j * self.stride + self.start}')
+        ax3.imshow(self.sobel[j, ...].T,
+                   cmap='gray', interpolation='none')
+        im = ax4.imshow(self.Corr[i, j, ...].compute().T,
+                        extent=[-self.fftsize, self.fftsize, -self.fftsize, self.fftsize],
+                        interpolation='none')
+        ax4.axhline(0, color='white', alpha=0.5)
+        ax4.axvline(0, color='white', alpha=0.5)
+        for ax in [ax2, ax3]:
+            ax.yaxis.set_label_position("right")
+            ax.tick_params(axis='y', labelright=True, labelleft=False)
+        plt.colorbar(im, ax=ax4)
+        if self.savefig:
+            # Saving Figure for paper.
+            plt.savefig('autocorrelation.pdf', dpi=300)
+        plt.show()
+        return fig
+
+    def plot_masking(self, min_normed_weight):
+        extent = [self.start, self.stop, self.stop, self.start]
+        fig, axs = plt.subplots(1, 3, figsize=(8, 2.5), constrained_layout=True)
+        im = {}
+        im[0] = axs[0].imshow(self.DX_DY[0], cmap='seismic', extent=extent, interpolation='none')
+        im[1] = axs[1].imshow(self.DX_DY[1], cmap='seismic', extent=extent, interpolation='none')
+        im[2] = axs[2].imshow(self.W_n - np.diag(np.diag(self.W_n)), cmap='inferno',
+                              extent=extent, clim=(0.0, None), interpolation='none')
+        axs[0].set_ylabel('$j$')
+        fig.colorbar(im[0], ax=axs[:2], shrink=0.82, fraction=0.1)
+        axs[0].contourf(self.W_n, [0, min_normed_weight],
+                        colors='black', alpha=0.6,
+                        extent=extent, origin='upper')
+        axs[1].contourf(self.W_n, [0, min_normed_weight],
+                        colors='black', alpha=0.6,
+                        extent=extent, origin='upper')
+        CF = axs[2].contourf(self.W_n, [0, min_normed_weight],
+                             colors='white', alpha=0.2,
+                             extent=extent, origin='upper')
+        cbar = fig.colorbar(im[2], ax=axs[2], shrink=0.82, fraction=0.1)
+        cbar.ax.fill_between([0, 1], 0, min_normed_weight, color='white', alpha=0.2)
+        for i in range(3):
+            axs[i].set_xlabel('$i$')
+            axs[i].tick_params(labelbottom=False, labelleft=False)
+        axs[0].set_title('$DX_{ij}$')
+        axs[1].set_title('$DY_{ij}$')
+        axs[2].set_title('$W_{ij}$')
+        if self.savefig:
+            plt.savefig('shiftsandweights.pdf', dpi=300)
+        plt.show()
+        return min_normed_weight
+
+
+if __name__ == '__main__':
+    cluster = LocalCluster(n_workers=1, threads_per_worker=4)
+    client = Client(cluster)
+    client.upload_file('Registration.py')
+    dc = DriftCorrector(0, -1, 1, 16, 128, True)
+    dc.apply_corrections()
