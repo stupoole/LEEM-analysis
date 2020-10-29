@@ -57,46 +57,6 @@ class ScrollBarImagePlot(object):
         self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
         self.update()
 
-
-class GUI():
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.wm_title("Slider Test")
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        load_directory = filedialog.askdirectory(title='Select a folder containing image files')
-        original = daim.imread(load_directory + '\\*.tif')
-
-        fig = Figure(figsize=(5, 4), dpi=100)
-        ax = fig.subplots(1, 1)
-        tracker = ScrollBarImagePlot(ax, original)
-        canvas = FigureCanvasTkAgg(fig, master=self.root)  # A tk.DrawingArea.
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        slider = tk.Scale(self.root, from_=0, to=original.shape[0] - 1, orient=tk.HORIZONTAL, command=tracker.onscroll)
-        slider.pack(fill=tk.X)
-        self.cont_button = tk.Button(self.root, command=self.pause, text="Continue")
-        self.cont_button.pack()
-
-        self.isRunning = False
-        self.closed = False
-
-    def start(self):
-        if not self.closed:
-            self.isRunning = True
-            while self.isRunning:
-                self.root.update()
-            if self.closed == True:
-                self.root.destroy()
-
-    def on_closing(self):
-        self.isRunning = False
-        self.closed = True
-
-    def pause(self):
-        self.isRunning = False
-        self.cont_button.setvar("text", "Quit")
-
-
 # Does not have access to self to define this dtype out and fails at infer dtype.
 @da.as_gufunc(signature="(i,j),(2)->(i,j)", output_dtypes=np.float32, vectorize=True)
 def shift_images(image, shift):
@@ -116,11 +76,15 @@ class DriftCorrector:
         self.z_factor = 1
         self.root = tk.Tk()
         self.root.wm_title("Original Images")
+        self.closed = False
         # self.root.withdraw()
 
     def apply_corrections(self):
         self.load_images()
-        self.plot_original()
+
+
+        if self.closed:
+            return
 
         self.calculate_sobel()
 
@@ -137,6 +101,7 @@ class DriftCorrector:
         self.calculate_shift_vectors()
 
         self.apply_shifts()
+
         self.plot_corrected()
 
         if not self.closed:
@@ -144,7 +109,12 @@ class DriftCorrector:
 
     def load_images(self):
         self.load_directory = filedialog.askdirectory(title='Select a folder containing image files')
-        self.original = daim.imread(self.load_directory + '\\*.tif')
+
+        if not self.load_directory == "":
+            self.original = daim.imread(self.load_directory + '\\*.tif')
+            self.plot_original()
+        else:
+            self.closed = True
 
     def plot_original(self):
         self.root.wm_title("Original Images")
@@ -331,5 +301,5 @@ if __name__ == '__main__':
     cluster = LocalCluster(n_workers=1, threads_per_worker=4)
     client = Client(cluster)
     client.upload_file('Registration.py')
-    dc = DriftCorrector(0, -1, 1, 16, 128, True)
+    dc = DriftCorrector(0, -1, 1, 4, 128, True)
     dc.apply_corrections()
