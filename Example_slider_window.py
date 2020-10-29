@@ -31,6 +31,13 @@ class ScrollBarImagePlot(object):
         self.ax.set_ylabel('slice %s' % self.ind)
         self.im.axes.figure.canvas.draw()
 
+    def replace(self, X):
+        self.X = X
+        self.slices, rows, cols = X.shape
+        self.ind = 0
+
+        self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
+        self.update()
 
 class GUI():
 

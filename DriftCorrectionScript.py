@@ -20,8 +20,10 @@ from skimage.io import imsave as sk_imsave
 import tkinter as tk
 from tkinter import filedialog
 
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.figure import Figure
 
 import Registration
 
@@ -33,22 +35,66 @@ class ScrollBarImagePlot(object):
 
         self.X = X
         self.slices, rows, cols = X.shape
-        self.ind = self.slices // 2
+        self.ind = 0
 
         self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
         self.update()
 
-    def onscroll(self, event):
-        if event.button == 'up':
-            self.ind = (self.ind + 1) % self.slices
-        else:
-            self.ind = (self.ind - 1) % self.slices
+    def onscroll(self, new_val):
+        self.ind = int(new_val)
         self.update()
 
     def update(self):
         self.im.set_data(self.X[self.ind, :, :].T)
         self.ax.set_ylabel('slice %s' % self.ind)
         self.im.axes.figure.canvas.draw()
+
+    def replace(self, X):
+        self.X = X
+        self.slices, rows, cols = X.shape
+        self.ind = 0
+
+        self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
+        self.update()
+
+
+class GUI():
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.wm_title("Slider Test")
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        load_directory = filedialog.askdirectory(title='Select a folder containing image files')
+        original = daim.imread(load_directory + '\\*.tif')
+
+        fig = Figure(figsize=(5, 4), dpi=100)
+        ax = fig.subplots(1, 1)
+        tracker = ScrollBarImagePlot(ax, original)
+        canvas = FigureCanvasTkAgg(fig, master=self.root)  # A tk.DrawingArea.
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        slider = tk.Scale(self.root, from_=0, to=original.shape[0] - 1, orient=tk.HORIZONTAL, command=tracker.onscroll)
+        slider.pack(fill=tk.X)
+        self.cont_button = tk.Button(self.root, command=self.pause, text="Continue")
+        self.cont_button.pack()
+
+        self.isRunning = False
+        self.closed = False
+
+    def start(self):
+        if not self.closed:
+            self.isRunning = True
+            while self.isRunning:
+                self.root.update()
+            if self.closed == True:
+                self.root.destroy()
+
+    def on_closing(self):
+        self.isRunning = False
+        self.closed = True
+
+    def pause(self):
+        self.isRunning = False
+        self.cont_button.setvar("text", "Quit")
 
 
 # Does not have access to self to define this dtype out and fails at infer dtype.
@@ -69,11 +115,12 @@ class DriftCorrector:
         self.Eslice = slice(start, stop, stride)
         self.z_factor = 1
         self.root = tk.Tk()
-        self.root.withdraw()
+        self.root.wm_title("Original Images")
+        # self.root.withdraw()
 
     def apply_corrections(self):
         self.load_images()
-        self.plot_stack(self.original)
+        self.plot_original()
 
         self.calculate_sobel()
 
@@ -90,28 +137,35 @@ class DriftCorrector:
         self.calculate_shift_vectors()
 
         self.apply_shifts()
-        self.plot_stack(self.corrected)
+        self.plot_corrected()
 
-        self.save_stack()
+        if not self.closed:
+            self.save_stack()
 
     def load_images(self):
         self.load_directory = filedialog.askdirectory(title='Select a folder containing image files')
         self.original = daim.imread(self.load_directory + '\\*.tif')
 
-        print(self.original.dtype)
+    def plot_original(self):
+        self.root.wm_title("Original Images")
+        self.root.protocol("WM_DELETE_WINDOW", self.GUI_close_action)
 
-    def save_stack(self):
-        save_directory = filedialog.asksaveasfilename(title='Save Directory')
-        if save_directory:  # if a folder was selected, don't save otherwise
-            filenames = [file.replace('.tif', '_shifted.tif') for file in os.listdir(self.load_directory)]
-            for filename, image in zip(filenames, self.corrected):
-                target = save_directory + '\\' + filename
-                sk_imsave(target, image)
-                print(f'Image saved as {target}')
-        else:
-            print('Data not saved')
-
-
+        fig = Figure(figsize=(5, 4), dpi=100)
+        ax = fig.subplots(1, 1)
+        self.tracker = ScrollBarImagePlot(ax, self.original)
+        canvas = FigureCanvasTkAgg(fig, master=self.root)  # A tk.DrawingArea.
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        slider = tk.Scale(self.root, from_=0, to=self.original.shape[0] - 1, orient=tk.HORIZONTAL,
+                          command=self.tracker.onscroll)
+        slider.pack(fill=tk.X)
+        self.cont_button_text = tk.StringVar()
+        cont_button = tk.Button(self.root, command=self.GUI_pause_action, textvariable=self.cont_button_text)
+        self.cont_button_text.set("Continue")
+        cont_button.pack()
+        self.isRunning = False
+        self.closed = False
+        self.GUI_start_action()
 
     def calculate_sobel(self, sigma=3):
         sobel = Registration.crop_and_filter(self.original.rechunk({0: self.dE}), sigma=sigma,
@@ -159,11 +213,41 @@ class DriftCorrector:
                         )
         self.corrected = shift_images(padded.rechunk({1: -1, 2: -1}), self.shifts)
 
-    def plot_stack(self, images):
-        fig, ax = plt.subplots(1, 1)
-        tracker = ScrollBarImagePlot(ax, images)
-        fig.canvas.mpl_connect('scroll_event', tracker.onscroll)
-        plt.show()
+    def plot_corrected(self):
+        self.root.wm_title("Corrected Images")
+        self.tracker.replace(self.corrected)
+        self.cont_button_text.set("Save")
+        self.GUI_start_action()
+
+    def save_stack(self):
+        save_directory = filedialog.askdirectory(title='Select save directory')
+        if save_directory:  # if a folder was selected, don't save otherwise
+            filenames = [file.replace('.tif', '_shifted.tif') for file in os.listdir(self.load_directory)]
+            for filename, image in zip(filenames, self.corrected):
+                target = save_directory + '\\' + filename
+                sk_imsave(target, image)
+                print(f'Image saved as {target}')
+        else:
+            print('Data not saved')
+
+        self.root.destroy()
+
+    def GUI_start_action(self):
+        self.root.deiconify()
+        if not self.closed:
+            self.isRunning = True
+            while self.isRunning:
+                self.root.update()
+            if self.closed == True:
+                self.root.destroy()
+
+    def GUI_close_action(self):
+        self.isRunning = False
+        self.closed = True
+
+    def GUI_pause_action(self):
+        self.root.withdraw()
+        self.isRunning = False
 
     def plot_corr(self, i, j):
         # fig = plt.figure(figsize=(8.2, 3.5), constrained_layout=True)
@@ -241,7 +325,6 @@ class DriftCorrector:
             plt.savefig('shiftsandweights.pdf', dpi=300)
         plt.show()
         return min_normed_weight
-
 
 
 if __name__ == '__main__':
