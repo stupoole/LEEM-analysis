@@ -39,7 +39,8 @@ class ScrollBarImagePlot(object):
         self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
         self.update()
 
-class GUI():
+
+class GUI:
 
     def __init__(self):
         self.root = tk.Tk()
@@ -84,4 +85,3 @@ if __name__ == "__main__":
     mygui.start()
     print("paused")
     mygui.start()
-
