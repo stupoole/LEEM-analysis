@@ -31,13 +31,12 @@ import Registration
 class ScrollBarImagePlot(object):
     def __init__(self, ax, X):
         self.ax = ax
-        self.ax.set_title('use scroll wheel to navigate images')
 
         self.X = X
         self.slices, rows, cols = X.shape
         self.ind = 0
 
-        self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
+        self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmin=self.X.min(), vmax=self.X.max())
         self.update()
 
     def onscroll(self, new_val):
@@ -101,7 +100,7 @@ class DriftCorrector:
         self.calculate_shift_vectors()
 
         self.apply_shifts()
-
+        self.corrected_images = self.corrected.compute()
         self.plot_corrected()
 
         if not self.closed:
@@ -111,7 +110,7 @@ class DriftCorrector:
         self.load_directory = filedialog.askdirectory(title='Select a folder containing image files')
 
         if not self.load_directory == "":
-            self.original = daim.imread(self.load_directory + '\\*.tif')
+            self.original = daim.imread(os.path.join(self.load_directory, '*.tif'))
             self.plot_original()
         else:
             self.closed = True
@@ -137,7 +136,7 @@ class DriftCorrector:
         self.closed = False
         self.GUI_start_action()
 
-    def calculate_sobel(self, sigma=3):
+    def calculate_sobel(self, sigma=5):
         sobel = Registration.crop_and_filter(self.original.rechunk({0: self.dE}), sigma=sigma,
                                              finalsize=self.fftsize * 2)
         self.sobel = (sobel - sobel.mean(axis=(1, 2), keepdims=True))
@@ -185,16 +184,19 @@ class DriftCorrector:
 
     def plot_corrected(self):
         self.root.wm_title("Corrected Images")
-        self.tracker.replace(self.corrected)
+        self.tracker.replace(self.corrected_images)
         self.cont_button_text.set("Save")
         self.GUI_start_action()
 
     def save_stack(self):
         save_directory = filedialog.askdirectory(title='Select save directory')
         if save_directory:  # if a folder was selected, don't save otherwise
-            filenames = [file.replace('.tif', '_shifted.tif') for file in os.listdir(self.load_directory)]
-            for filename, image in zip(filenames, self.corrected):
-                target = save_directory + '\\' + filename
+            # TODO(STU) combine these operations into one or 2
+            file_list = os.listdir(self.load_directory)
+            file_list = [file for file in file_list if file[-4] == "."]
+            file_list = [file.replace('.tif', '_shifted.tif') for file in file_list]
+            for filename, image in zip(file_list, self.corrected_images):
+                target = os.path.join(save_directory, filename)
                 sk_imsave(target, image)
                 print(f'Image saved as {target}')
         else:
@@ -301,5 +303,5 @@ if __name__ == '__main__':
     cluster = LocalCluster(n_workers=1, threads_per_worker=4)
     client = Client(cluster)
     client.upload_file('Registration.py')
-    dc = DriftCorrector(0, -1, 1, 4, 128, True)
+    dc = DriftCorrector(0, -1, 1, 10, 128, True)
     dc.apply_corrections()
