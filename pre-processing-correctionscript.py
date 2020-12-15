@@ -13,6 +13,7 @@ from scipy.optimize import least_squares
 import scipy.ndimage as ndi
 import scipy.sparse as sp
 from scipy.interpolate import interp1d
+from scipy.signal import convolve2d
 
 from skimage import filters
 from skimage.io import imsave as sk_imsave
@@ -59,13 +60,13 @@ class medipix_corrector:
     def __init__(self):
         self.stack = None
         self.norm_image = None
-        self.bad_pixel_image = None
 
-    def set_stack(self, stack, norm_image=None, bad_pixel_image=None):
+        self.bad_pixel_image = daim.imread('badPixelImage*.tif').compute()[0]
+
+    def set_stack(self, stack, norm_image=None):
         self.original = stack
         self.num, self.width, self.height = stack.shape
         self.norm_image = norm_image
-        self.bad_pixel_image = bad_pixel_image
         self.dE = 4
 
     def apply_corrections(self):
@@ -73,8 +74,7 @@ class medipix_corrector:
             self.__fix_overlap()
         # if self.norm_image is not None:
         #     self.__apply_normalisation()
-        # if self.bad_pixel_image is not None:
-        #     self.__fix_bad_pixels()
+        self.__fix_bad_pixels()
         return self.stack
 
     def __fix_overlap(self):
@@ -113,8 +113,17 @@ class medipix_corrector:
 
         # def __apply_normalisation(self):
 
+    def __fix_bad_pixels(self):
+        for i in range(self.stack.shape[0]):
+            image = self.stack[i]
+            meaner = np.array([[0, 0.25, 0], [0.25, 0, 0.25], [0, 0.25, 0]])
+            meaned = convolve2d(image, meaner, mode='same')
+            image[self.bad_pixel_image == 1] = meaned[self.bad_pixel_image == 1]
+            self.stack[i] = image
 
-class DischorismProcessor:
+
+
+class DichroismProcessor:
 
     def __init__(self):
         self.root = tk.Tk()
@@ -147,6 +156,4 @@ class DischorismProcessor:
 
 
 if __name__ == '__main__':
-    cluster = LocalCluster(n_workers=1, threads_per_worker=4)
-    client = Client(cluster)
-    corrector = DischorismProcessor()
+    corrector = DichroismProcessor()
