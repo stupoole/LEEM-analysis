@@ -17,7 +17,6 @@ from scipy.signal import convolve2d
 
 from skimage import filters
 from skimage.io import imsave as sk_imsave
-
 import tkinter as tk
 from tkinter import filedialog
 
@@ -60,21 +59,25 @@ class medipix_corrector:
     def __init__(self):
         self.stack = None
         self.norm_image = None
-
+        self.is_norm = False
         self.bad_pixel_image = daim.imread('badPixelImage*.tif').compute()[0]
 
-    def set_stack(self, stack, norm_image=None):
+    def set_stack(self, stack, norm_image=None, is_norm=False):
         self.original = stack
         self.num, self.width, self.height = stack.shape
         self.norm_image = norm_image
         self.dE = 4
+        self.is_norm = is_norm
 
     def apply_corrections(self):
         if self.original is not None:
             self.__fix_overlap()
-        # if self.norm_image is not None:
-        #     self.__apply_normalisation()
+
         self.__fix_bad_pixels()
+        if self.is_norm == True:
+            return self.__make_norm()
+        if self.norm_image is not None:
+            self.__apply_normalisation()
         return self.stack
 
     def __fix_overlap(self):
@@ -119,8 +122,15 @@ class medipix_corrector:
             meaner = np.array([[0, 0.25, 0], [0.25, 0, 0.25], [0, 0.25, 0]])
             meaned = convolve2d(image, meaner, mode='same')
             image[self.bad_pixel_image == 1] = meaned[self.bad_pixel_image == 1]
+            image[image > 4000] = meaned[image > 4000]
             self.stack[i] = image
 
+    def __make_norm(self):
+        image = np.mean(self.stack, axis=0)
+        return image / np.mean(image)
+
+    def __apply_normalisation(self):
+        self.stack = self.stack / np.repeat(self.norm_image, self.stack.shape[0], axis=0)
 
 
 class DichroismProcessor:
@@ -130,29 +140,64 @@ class DichroismProcessor:
         self.root.wm_title("Original Images")
         self.closed = False
         self.corrector = medipix_corrector()
+        self.load_norm()
         self.load_images()
-        self.corrector.set_stack(self.original)
+        self.corrector.set_stack(self.original, is_norm=False)
         results = self.corrector.apply_corrections()
         plt.imshow(results[0])
         plt.show()
+        self.save_stack(results)
+
+    #     todo(stupoole) do the dichroism calculations
+
+    def load_norm(self):
+        self.load_directory = filedialog.askdirectory(title='Select a folder containing Normalisation image file(s)')
+
+        if not self.load_directory == "":
+            self.norm = daim.imread(os.path.join(self.load_directory, '*.tif')).compute()
+            plt.imshow(self.norm[0, :, :])
+            plt.show()
+        else:
+            self.closed = True
+
+        if self.norm.shape[0] != 1:
+            self.corrector.set_stack(self.norm, is_norm=True)
+            self.norm = self.corrector.apply_corrections()
+            self.save_single(self.norm)
 
     def load_images(self):
-        # norm_flat_field_path = filedialog.askopenfile('Select normalisation image file')
-        # if not norm_flat_field_path == "":
-        #     self.flat_field_image = daim.imread(norm_flat_field_path)
-        # else:
-        #     self.closed = True
-        #
-        # self.flat_field_image = daim.imread(norm_flat_field_path)
-
         self.load_directory = filedialog.askdirectory(title='Select a folder containing image files')
-
+        print('loading from: ', self.load_directory)
         if not self.load_directory == "":
             self.original = daim.imread(os.path.join(self.load_directory, '*.tif')).compute()
             plt.imshow(self.original[0, :, :])
             plt.show()
         else:
             self.closed = True
+
+    def save_single(self, image):
+        save_name = filedialog.asksaveasfilename(title='Specify save name for norm image in a new folder',
+                                                 defaultextension='.tif')
+        image = image.astype('float32')
+        if save_name:
+            print(f'Norm image saved as {save_name}')
+            sk_imsave(save_name, image)
+
+    def save_stack(self, stack):
+        save_directory = filedialog.askdirectory(title='Select save directory')
+        if save_directory:  # if a folder was selected, don't save otherwise
+            # TODO(STU) combine these operations into one or 2
+            file_list = os.listdir(self.load_directory)
+            file_list = [file for file in file_list if file[-4] == "."]
+            file_list = [file.replace('.tif', '_corrected.tif') for file in file_list]
+            for filename, image in zip(file_list, stack):
+                target = os.path.join(save_directory, filename)
+                sk_imsave(target, image)
+                print(f'Image saved as {target}')
+        else:
+            print('Data not saved')
+
+        self.root.destroy()
 
 
 if __name__ == '__main__':
