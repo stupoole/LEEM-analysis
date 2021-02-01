@@ -56,6 +56,7 @@ class ScrollBarImagePlot(object):
         self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
         self.update()
 
+
 # Does not have access to self to define this dtype out and fails at infer dtype.
 @da.as_gufunc(signature="(i,j),(2)->(i,j)", output_dtypes=np.float32, vectorize=True)
 def shift_images(image, shift):
@@ -64,23 +65,24 @@ def shift_images(image, shift):
 
 
 class DriftCorrector:
-    def __init__(self, start, stop, stride, dE, fftsize, savefig):
+    def __init__(self, start, stop, stride, dE, fftsize, sigma=3, threshold=0.15):
         self.start = start
         self.stop = stop
         self.stride = stride
         self.dE = dE
         self.fftsize = fftsize
-        self.savefig = savefig
+        self.savefig = True
         self.Eslice = slice(start, stop, stride)
         self.z_factor = 1
         self.root = tk.Tk()
         self.root.wm_title("Original Images")
         self.closed = False
+        self.sigma = sigma
+        self.threshold = threshold
         # self.root.withdraw()
 
     def apply_corrections(self):
         self.load_images()
-
 
         if self.closed:
             return
@@ -108,7 +110,10 @@ class DriftCorrector:
 
     def load_images(self):
         self.load_directory = filedialog.askdirectory(title='Select a folder containing image files')
-
+        file_list = os.listdir(self.load_directory)
+        file_list = [file for file in file_list if file[-4:] == ".tif"]
+        for file in file_list:
+            print("Loading " + os.path.join(self.load_directory, file))
         if not self.load_directory == "":
             self.original = daim.imread(os.path.join(self.load_directory, '*.tif'))
             self.plot_original()
@@ -136,8 +141,8 @@ class DriftCorrector:
         self.closed = False
         self.GUI_start_action()
 
-    def calculate_sobel(self, sigma=5):
-        sobel = Registration.crop_and_filter(self.original.rechunk({0: self.dE}), sigma=sigma,
+    def calculate_sobel(self):
+        sobel = Registration.crop_and_filter(self.original.rechunk({0: self.dE}), sigma=self.sigma,
                                              finalsize=self.fftsize * 2)
         self.sobel = (sobel - sobel.mean(axis=(1, 2), keepdims=True))
 
@@ -147,7 +152,7 @@ class DriftCorrector:
     def calculate_half_matrices(self):
         t = time.monotonic()
         self.W, self.DX_DY = Registration.calculate_halfmatrices(self.weights, self.argmax, fftsize=self.fftsize)
-        print(time.monotonic() - t)
+        print("Computation Time: " + str(time.monotonic() - t))
 
     def normalise_maximum_weights(self):
         self.w_diag = np.atleast_2d(np.diag(self.W))
@@ -155,7 +160,7 @@ class DriftCorrector:
 
     def calculate_thresholding(self):
         # TODO(Stu) Implement GUI elements for thresholding
-        min_norm = 0.15
+        min_norm = self.threshold
         nr = np.arange(self.W.shape[0]) * self.stride + self.start
 
         self.coords, self.weightmatrix, self.DX, self.DY, self.row_mask = \
@@ -193,7 +198,7 @@ class DriftCorrector:
         if save_directory:  # if a folder was selected, don't save otherwise
             # TODO(STU) combine these operations into one or 2
             file_list = os.listdir(self.load_directory)
-            file_list = [file for file in file_list if file[-4] == "."]
+            file_list = [file for file in file_list if "." in file]
             file_list = [file.replace('.tif', '_shifted.tif') for file in file_list]
             for filename, image in zip(file_list, self.corrected_images):
                 target = os.path.join(save_directory, filename)
@@ -303,5 +308,5 @@ if __name__ == '__main__':
     cluster = LocalCluster(n_workers=1, threads_per_worker=4)
     client = Client(cluster)
     client.upload_file('Registration.py')
-    dc = DriftCorrector(0, -1, 1, 10, 128, True)
+    dc = DriftCorrector(0, -1, 1, 1, 250, 3, 0.5)
     dc.apply_corrections()
