@@ -29,10 +29,10 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import QFileDialog, QApplication, QListView, QTreeView, QAbstractItemView
 
-
 from Correctors import DriftCorrector, StackPlotter, MediPixCorrector
 
-class FileDialog(QFileDialog):
+
+class MultiDirectoryFileDialog(QFileDialog):
     def __init__(self, *args):
         QFileDialog.__init__(self, *args)
         self.setOption(self.DontUseNativeDialog, True)
@@ -47,16 +47,15 @@ class FileDialog(QFileDialog):
 
 class RapidXMLD:
 
-    def __init__(self, norm_path, dir_paths, plotting, xmcd=False):
+    def __init__(self, norm_path, dir_paths, plotting=False, xmcd=False):
         self.root = tk.Tk()
         self.root.wm_title('Root Window')
         self.closed = False
         self.corrector = MediPixCorrector()
         self.driftCorrector = DriftCorrector(0, -1, 1, 1, 250, 3, 0.5)
         self.load_norm(norm_path)
-        if plotting:
-            self.plotter = StackPlotter(self.root)
-
+        self.plotter = StackPlotter(self.root)
+        self.dichroism_images = []
 
         for folder in dir_paths:
             self.load_images(folder)
@@ -69,7 +68,7 @@ class RapidXMLD:
             self.results = self.driftCorrector.apply_corrections(self.results)
             if plotting:
                 self.plotter.plot_stack(self.results, 'Aligned ' + folder.split(os.sep)[-1])
-            self.save_stack(self.results, folder)
+
             if xmcd:
                 dichroism_image = self.apply_xmcd()
             else:
@@ -77,14 +76,14 @@ class RapidXMLD:
             if plotting:
                 self.plot_single(dichroism_image)
             self.save_single(dichroism_image, folder)
-
+            self.save_stack(self.results, folder)
+            self.dichroism_images.append(dichroism_image)
+        self.padding_solver()
+        self.plotter.plot_stack(np.array(self.dichroism_images), "Dichroism Images")
 
     def load_norm(self, filepath):
         if not filepath == "":
             self.norm = daim.imread(filepath)
-            plt.figure('Normalisation Image Preview')
-            plt.imshow(self.norm[0, :, :])
-            plt.show()
         else:
             self.closed = True
 
@@ -115,24 +114,52 @@ class RapidXMLD:
 
     def apply_xmld(self):
         n, x, y = self.results.shape
-        first_half = self.results[0:n//2,: ,:]
-        second_half = self.results[n//2:, :, :]
-        result = np.mean(first_half - second_half, axis=0)/np.sum(self.results, axis=0)
+        first_half = np.mean(self.results[0:n // 2, :, :], axis=0)
+        second_half = np.mean(self.results[n // 2:, :, :], axis=0)
+
+        meaner = np.array([[0.125, 0.125, 0.125], [0.125, 0, 0.125], [0.125, 0.125, 0.125]])
+        meaned = convolve2d(first_half, meaner, mode='same')
+        first_half[first_half <= 0.1] = meaned[first_half <= 0.1]
+
+        meaned = convolve2d(second_half, meaner, mode='same')
+        second_half[second_half <= 0.1] = meaned[second_half <= 0.1]
+
+        result = (first_half - second_half) / (first_half + second_half)
         return result
 
     def apply_xmcd(self):
         n, x, y = self.results.shape
-        first_half = self.results[0:n//4,: ,:] / self.results[n//4:n//2, :, :]
-        second_half = self.results[n//2:3*n//4, :, :] / self.results[3*n//4:, :, :]
-        result = np.mean(first_half - second_half, axis=0)/(first_half + second_half)
+        first_half = self.results[0:n // 4, :, :] / self.results[n // 4:n // 2, :, :]
+        second_half = self.results[n // 2:3 * n // 4, :, :] / self.results[3 * n // 4:, :, :]
+
+        meaner = np.array([[0.125, 0.125, 0.125], [0.125, 0, 0.125], [0.125, 0.125, 0.125]])
+        meaned = convolve2d(first_half, meaner, mode='same')
+        first_half[first_half <= 0.1] = meaned[first_half <= 0.1]
+
+        meaned = convolve2d(second_half, meaner, mode='same')
+        second_half[second_half <= 0.1] = meaned[second_half <= 0.1]
+
+        result = np.mean(first_half - second_half, axis=0) / (first_half + second_half)
         plt.figure('XMCD Image Result')
         plt.imshow(result)
         plt.pause(0.5)
         return result
+
     def plot_single(self, image):
         plt.figure('XMLD Image Result')
         plt.imshow(image)
         plt.pause(0.5)
+
+    def padding_solver(self):
+
+        new_size = max([array.shape for array in self.dichroism_images])
+        for i in range(0, len(self.dichroism_images)):
+            array = self.dichroism_images[i]
+            pads = np.array(new_size) - np.array(array.shape)
+            if pads.sum() > 0:
+                array = np.pad(array, (((pads[0] + 1) // 2, pads[0] // 2), ((pads[1] + 1) // 2, pads[1] // 2)),
+                               'constant', constant_values=0)
+                self.dichroism_images[i] = array
 
 
 if __name__ == '__main__':
@@ -141,13 +168,14 @@ if __name__ == '__main__':
         title='Select the Normalisation image file processed with NormalisationImageProcessor'))
 
     app = QApplication(sys.argv)
-    ex = FileDialog()
+    ex = MultiDirectoryFileDialog()
     ex.show()
     app.exec_()
     directories = [os.path.abspath(path) for path in ex.selectedFiles()[1:]]
-    # print(directories)
 
     # norm_path = os.path.abspath('D:\Diamond Data Processing Oct 2020\Data\Processed\M_\M_norm_264021.tif')
-    # directories = ['D:/Diamond Data Processing Oct 2020/Data/RAW/265040_medipixImage', 'D:/Diamond Data Processing Oct 2020/Data/RAW/265041_medipixImage', 'D:/Diamond Data Processing Oct 2020/Data/RAW/265042_medipixImage']
+    # directories = ['D:/Diamond Data Processing Oct 2020/Data/RAW/265040_medipixImage',
+    #                'D:/Diamond Data Processing Oct 2020/Data/RAW/265041_medipixImage',
+    #                'D:/Diamond Data Processing Oct 2020/Data/RAW/265042_medipixImage']
     # directories = [os.path.abspath(path) for path in directories]
-    processor = RapidXMLD(norm_path, directories, False, False)
+    processor = RapidXMLD(norm_path, directories, True, False)
