@@ -107,7 +107,7 @@ class MediPixCorrector:
         self.stack = None
         self.norm_image = None
         self.is_norm = False
-        self.bad_pixel_image = daim.imread('badPixelImage*.tif').compute()[0]
+        self.bad_pixel_image = daim.imread('badPixelImage12KV.tif').compute()[0]
 
     def set_stack(self, stack, norm_image):
         self.original = stack
@@ -164,10 +164,11 @@ class MediPixCorrector:
     def __fix_bad_pixels(self):
         for i in range(self.stack.shape[0]):
             image = self.stack[i]
-            meaner = np.array([[0, 0.25, 0], [0.25, 0, 0.25], [0, 0.25, 0]])
+            meaner = np.array([[0.125, 0.125, 0.125], [0.125, 0, 0.125], [0.125, 0.125, 0.125]])
             meaned = convolve2d(image, meaner, mode='same')
             image[self.bad_pixel_image == 1] = meaned[self.bad_pixel_image == 1]
-            image[image > 4000] = meaned[image > 4000]
+            image[image > 3000] = meaned[image > 3000]
+            image[image <= 0.1] = meaned[image <= 0.1]
             self.stack[i] = image
 
     def __make_norm(self):
@@ -247,15 +248,17 @@ class StackPlotter:
             canvas = FigureCanvasTkAgg(fig, master=self.root)  # A tk.DrawingArea.
             canvas.draw()
             canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-            slider = tk.Scale(self.root, from_=0, to=stack.shape[0] - 1, orient=tk.HORIZONTAL,
+            self.slider = tk.Scale(self.root, from_=0, to=stack.shape[0] - 1, orient=tk.HORIZONTAL,
                               command=self.tracker.onscroll)
-            slider.pack(fill=tk.X)
+            self.slider.pack(fill=tk.X)
             self.cont_button_text.set("Continue")
             cont_button = tk.Button(self.root, command=self.GUI_pause_action, textvariable=self.cont_button_text)
             cont_button.pack()
         else:
             self.tracker.replace(stack)
             self.cont_button_text.set("Continue")
+            self.slider.set(0)
+
         self.isRunning = False
         self.closed = False
         self.GUI_start_action()
