@@ -1,0 +1,618 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>957</width>
+    <height>662</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QWidget" name="LeftRightSplitLayout" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <layout class="QVBoxLayout" name="ImagePreviewVlayout">
+         <item>
+          <widget class="QGroupBox" name="PreviewGroupBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="title">
+            <string>Original Image Stack</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_2">
+            <item row="0" column="0">
+             <widget class="QOpenGLWidget" name="ImagePreviewWidget">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>514</width>
+                <height>514</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="SliderHLayout">
+           <property name="leftMargin">
+            <number>10</number>
+           </property>
+           <property name="rightMargin">
+            <number>10</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="StackSliderLabel">
+             <property name="text">
+              <string>Image No.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSlider" name="StackSlider">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="StackSliderIndicator">
+             <property name="maximumSize">
+              <size>
+               <width>100</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>0</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="StackSelectorLayout">
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QPushButton" name="PlotNormStackButton">
+             <property name="text">
+              <string>Plot Norm Stack</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="PlotOriginalStackButton">
+             <property name="text">
+              <string>Plot Original Stack</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="PlotResultStackButton">
+             <property name="text">
+              <string>Plot Results Stack</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="ControlsStack">
+         <item>
+          <layout class="QGridLayout" name="ImageLoadingGrid">
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="verticalSpacing">
+            <number>20</number>
+           </property>
+           <item row="1" column="1">
+            <widget class="QPushButton" name="LoadNormalisationImageButton">
+             <property name="text">
+              <string>Load Normalisation Image(s)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QPushButton" name="LoadBadPixelPathButton">
+             <property name="text">
+              <string>Load Bad Pixel Image</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLineEdit" name="NormalisationImageEntry"/>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLineEdit" name="BadPixelPathEntry"/>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLineEdit" name="OriginalPathEntry"/>
+           </item>
+           <item row="2" column="1">
+            <widget class="QPushButton" name="LoadOriginalPathButton">
+             <property name="text">
+              <string>Load Original Images</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="BadPixelLayout">
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+          </layout>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="gridGroupBox">
+           <property name="title">
+            <string>Corrections to Apply</string>
+           </property>
+           <layout class="QGridLayout" name="CorrectionSelctionGrid">
+            <property name="topMargin">
+             <number>1</number>
+            </property>
+            <item row="3" column="0">
+             <widget class="QCheckBox" name="BadPixelCheckBox">
+              <property name="text">
+               <string>Apply Bad Pixel Corr</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QCheckBox" name="DichroismCheckBox">
+              <property name="text">
+               <string>Apply Dichroism</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="2">
+             <widget class="QCheckBox" name="AlignBeforeCheckBox">
+              <property name="text">
+               <string>Align Before Dichroism</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QCheckBox" name="NormalisationCheckBox">
+              <property name="text">
+               <string>Apply Normalisation</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QCheckBox" name="AlignAfterCheckBox">
+              <property name="text">
+               <string>Align After Dichroism</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="2">
+             <widget class="QCheckBox" name="DetectorOverlapCheckBox">
+              <property name="text">
+               <string>Fix Detector Overlap</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="DichroismGroup">
+           <property name="title">
+            <string>Dichroism Mode</string>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_7">
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QRadioButton" name="XMLDButton">
+              <property name="toolTip">
+               <string>For use with 20 image XMLD Stacks</string>
+              </property>
+              <property name="text">
+               <string>XMLD</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="XMCDButton">
+              <property name="toolTip">
+               <string>For use with 40 image XMCD stacks</string>
+              </property>
+              <property name="text">
+               <string>XMCD</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="AlignmentSelectGroup">
+           <property name="title">
+            <string>Alignment Mode</string>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_11">
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QRadioButton" name="AlignStackButton">
+              <property name="toolTip">
+               <string>Use this to align the images if all are taken of similar locations</string>
+              </property>
+              <property name="text">
+               <string>Stack</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="StitchStackButton">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="toolTip">
+               <string>Use this to stitch together images of various positions</string>
+              </property>
+              <property name="text">
+               <string>Stitch</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="horizontalGroupBox_4">
+           <property name="title">
+            <string>Slicing Settings</string>
+           </property>
+           <layout class="QHBoxLayout" name="SlicingGroup">
+            <property name="topMargin">
+             <number>1</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="StartLabel">
+              <property name="text">
+               <string>Start</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="StartEntry">
+              <property name="toolTip">
+               <string>Index of first image to be corrected in stack</string>
+              </property>
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="StopLabel">
+              <property name="text">
+               <string>Stop</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="StopEntry">
+              <property name="toolTip">
+               <string>Index of last image to be corrected in stack</string>
+              </property>
+              <property name="text">
+               <string>-1</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="StrideLabel">
+              <property name="text">
+               <string>Stride</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="StrideEntry">
+              <property name="toolTip">
+               <string>Number of images to step over for each interation of alignment. Use 1 for small stacks and larger numbers for larger stacks. The correction is applied to all images using interpolation.</string>
+              </property>
+              <property name="text">
+               <string>1</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="horizontalGroupBox_5">
+           <property name="title">
+            <string>Filter Settings</string>
+           </property>
+           <layout class="QHBoxLayout" name="SobelGroup">
+            <property name="topMargin">
+             <number>1</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="FFTSizeLabel">
+              <property name="text">
+               <string>FFT Size</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="FFTSizeEntry">
+              <property name="toolTip">
+               <string>The size of the FFT (Must be less than half the width/height of the image</string>
+              </property>
+              <property name="text">
+               <string>250</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="SigmaLabel">
+              <property name="text">
+               <string>Sigma</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="SigmaEntry">
+              <property name="toolTip">
+               <string>Smoothing amount before edge detection</string>
+              </property>
+              <property name="text">
+               <string>3</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="ThresholdLayout">
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="ThresholdSliderLabel">
+             <property name="text">
+              <string>Threshold</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSlider" name="ThresholdSlider">
+             <property name="toolTip">
+              <string>Adjusts the threshold for the edge detection algorithm. Default 0.5#</string>
+             </property>
+             <property name="maximum">
+              <number>999</number>
+             </property>
+             <property name="sliderPosition">
+              <number>500</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="ThresholdSliderEntry">
+             <property name="maximumSize">
+              <size>
+               <width>50</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>0.5</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_4">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="NormStackStartButton">
+           <property name="toolTip">
+            <string>Applies the above selected corrections to the Normalisation Image. Only use if the selected Normalisation Image is a Stack. This means the norm image stack and uses that for further processing,</string>
+           </property>
+           <property name="text">
+            <string>Correct Normalisation Image Stack</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="SaveNormButton">
+           <property name="toolTip">
+            <string>Save the results of the Normalisation Image stack corrections after meaning</string>
+           </property>
+           <property name="text">
+            <string>Save Normalisation Image Result</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="StartButton">
+           <property name="toolTip">
+            <string>This uses all above options to correct the image stack. Don't forget to apply normalisation corrections if using a stack of normalisation images.</string>
+           </property>
+           <property name="text">
+            <string>Apply Corrections to Original Stack</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="SaveButton">
+           <property name="toolTip">
+            <string>Saves the current images from the &quot;Results&quot; stack</string>
+           </property>
+           <property name="text">
+            <string>Save Result Stack</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="QuitButton">
+           <property name="toolTip">
+            <string>Close the program, losing unsaved images.</string>
+           </property>
+           <property name="text">
+            <string>Quit</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_9">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <spacer name="verticalSpacer_3">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>40</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item row="0" column="1">
+     <spacer name="horizontalSpacer">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
