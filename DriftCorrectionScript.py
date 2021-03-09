@@ -26,35 +26,9 @@ import matplotlib as mpl
 from matplotlib.figure import Figure
 
 import Registration
+from Correctors import ScrollBarImagePlot
 
 
-class ScrollBarImagePlot(object):
-    def __init__(self, ax, X):
-        self.ax = ax
-
-        self.X = X
-        self.slices, rows, cols = X.shape
-        self.ind = 0
-
-        self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmin=self.X.min(), vmax=self.X.max())
-        self.update()
-
-    def onscroll(self, new_val):
-        self.ind = int(new_val)
-        self.update()
-
-    def update(self):
-        self.im.set_data(self.X[self.ind, :, :].T)
-        self.ax.set_ylabel('slice %s' % self.ind)
-        self.im.axes.figure.canvas.draw()
-
-    def replace(self, X):
-        self.X = X
-        self.slices, rows, cols = X.shape
-        self.ind = 0
-
-        self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmax=self.X.max())
-        self.update()
 
 
 # Does not have access to self to define this dtype out and fails at infer dtype.
@@ -126,7 +100,7 @@ class DriftCorrector:
 
         fig = Figure(figsize=(5, 4), dpi=100)
         ax = fig.subplots(1, 1)
-        self.tracker = ScrollBarImagePlot(ax, self.original)
+        self.tracker = ScrollBarImagePlot(fig, ax, self.original)
         canvas = FigureCanvasTkAgg(fig, master=self.root)  # A tk.DrawingArea.
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
