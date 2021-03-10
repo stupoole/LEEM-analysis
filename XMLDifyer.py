@@ -1,29 +1,16 @@
 import numpy as np
 import os
-import numba
-import time
 import sys
-import dask
-import dask.array as da
-import dask.array.image as daim
-from dask.delayed import delayed
-from dask.distributed import Client, LocalCluster
 
-from scipy.optimize import least_squares
-import scipy.ndimage as ndi
-import scipy.sparse as sp
-from scipy.interpolate import interp1d
+import dask.array.image as daim
+
 from scipy.signal import convolve2d
 
-from skimage import filters
 from skimage.io import imsave as sk_imsave
 import tkinter as tk
 from tkinter import filedialog
 
-from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-from matplotlib.figure import Figure
 
 from pathlib import Path
 
@@ -47,7 +34,7 @@ class MultiDirectoryFileDialog(QFileDialog):
 
 class RapidXMLD:
 
-    def __init__(self, root,  norm_path, dir_paths, plotting=False, xmcd=False):
+    def __init__(self, root, norm_path, dir_paths, plotting=False, xmcd=False):
         """
         This class applies multiple corrections to XMLD/XMCD images taken at i10 at diamond. It loads a normalisation
         image to use with all images that are processed and has a built in bad pixel image which much be changed
@@ -198,6 +185,7 @@ class RapidXMLD:
 
 if __name__ == '__main__':
     # Choose a normalisation image to use
+
     root = tk.Tk()
     norm_path = os.path.abspath(filedialog.askopenfilename(
         filetypes=[('Tiff Image', '.tif'), ('All Files)', '*')],
@@ -212,6 +200,9 @@ if __name__ == '__main__':
     directories = [os.path.abspath(path) for path in ex.selectedFiles()[1:]]
     app.quit()
     # Specify options. By default XMCD and Plotting are both false
-    plotting = True
+    plotting = False
     XMCD = False
+    for arg in sys.argv:
+        if arg == '-xmcd' or arg == '-XMCD':
+            XMCD = True
     processor = RapidXMLD(root, norm_path, directories, plotting, XMCD)
