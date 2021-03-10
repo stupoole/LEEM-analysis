@@ -48,6 +48,21 @@ class MultiDirectoryFileDialog(QFileDialog):
 class RapidXMLD:
 
     def __init__(self, norm_path, dir_paths, plotting=False, xmcd=False):
+        """
+        This class applies multiple corrections to XMLD/XMCD images taken at i10 at diamond. It loads a normalisation
+        image to use with all images that are processed and has a built in bad pixel image which much be changed
+        manually. The dir_paths variable is a list of folders of raw images from the detector. These folders will be
+        loaded and processed sedquentially so the images in the first folder are loaded, corrected and aligned before
+        dichroism calculations are made.
+        The aligned images are saved in a folder "RAW_Aligned" one directory up from the raw data folder of folders.
+        The XMLD images are saved to make it convenient to load a batch of results. To do this, the name of the first
+        folder of images is used as the folder of results (call it folder_1). The resulting XMLD/XMCD images from
+        folder_n are saved up one folder from RAW and in XMLD/folder_1/folder_n.tif
+        :param norm_path: Normalisation image path
+        :param dir_paths: Folders to load images from
+        :param plotting: Do you want
+        :param xmcd:
+        """
         self.root = tk.Tk()
         self.root.wm_title('Root Window')
         self.closed = False
@@ -56,6 +71,7 @@ class RapidXMLD:
         self.load_norm(norm_path)
         self.plotter = StackPlotter(self.root)
         self.dichroism_images = []
+        self.xmcd = xmcd
 
         for folder in dir_paths:
             self.load_images(folder)
@@ -75,31 +91,46 @@ class RapidXMLD:
                 dichroism_image = self.apply_xmld()
             if plotting:
                 self.plot_single(dichroism_image)
-            self.save_single(dichroism_image, folder)
             self.save_stack(self.results, folder)
             self.dichroism_images.append(dichroism_image)
         self.padding_solver()
+        self.save_dichroisms(self.dichroism_images, dir_paths)
         self.plotter.plot_stack(np.array(self.dichroism_images), "Dichroism Images")
 
     def load_norm(self, filepath):
+        # Just loads the normalisation image
         if not filepath == "":
             self.norm = daim.imread(filepath)
         else:
             self.closed = True
 
     def load_images(self, load_directory):
+        # Load all images in a given directory
         print('loading from: ', load_directory)
         self.original = daim.imread(os.path.join(load_directory, '*.tif')).compute()
 
-    def save_single(self, image, filename):
-        path = Path(filename)
-        path = path.parents[1].joinpath('XMLD').joinpath(path.parts[-1] + '_xmld.tif')
-        image = image.astype('float32')
-        if path:
-            sk_imsave(path, image)
-            print(f'XMLD image saved as {path}')
+    def save_dichroisms(self, stack, dir_paths):
+        # Saves a single dichroism result. If you load 20 images, they are all saved in a folder
+        # /../XMLD/<dir_paths[0]>/<dir_paths[i]>_xmld.tif"
+        if self.xmcd:
+            mode = 'XMCD'
+        else:
+            mode = 'XMLD'
+
+        root = Path(dir_paths[0])
+        root = str(root.parents[1].joinpath(mode).joinpath(root.parts[-1])).replace('_medipixImage', '_batch')
+        if not os.path.isdir(root):
+            os.mkdir(root)
+
+        for filename, image in zip(dir_paths, stack):
+            filename = Path(filename).parts[-1]
+            target = os.path.join(root, str(filename).replace('_medipixImage', '_XMLD.tif'))
+            image = image.astype('float32')
+            sk_imsave(target, image)
+            print(f'Image saved as {target}')
 
     def save_stack(self, stack, dirname):
+        # Saves a stack of images. Currently used to save the stack of aligned images.
         path = Path(dirname)
         path = path.parents[1].joinpath('RAW_aligned').joinpath(path.parts[-1])
         if not os.path.isdir(path):
@@ -113,6 +144,8 @@ class RapidXMLD:
             print(f'Image saved as {target}')
 
     def apply_xmld(self):
+        # Calculates xmld as mean(a - b ) / (a + b)
+        # Fixes zero values as average of surrounds
         n, x, y = self.results.shape
         first_half = np.mean(self.results[0:n // 2, :, :], axis=0)
         second_half = np.mean(self.results[n // 2:, :, :], axis=0)
@@ -128,6 +161,8 @@ class RapidXMLD:
         return result
 
     def apply_xmcd(self):
+        # Same as for xmld but the images are normalised with an on edge image. mean(a/b - c/d) / (a/b + c/d)
+        # Fixes zero values as average of surrounds
         n, x, y = self.results.shape
         first_half = self.results[0:n // 4, :, :] / self.results[n // 4:n // 2, :, :]
         second_half = self.results[n // 2:3 * n // 4, :, :] / self.results[3 * n // 4:, :, :]
@@ -146,12 +181,13 @@ class RapidXMLD:
         return result
 
     def plot_single(self, image):
+        # Just plot an image.
         plt.figure('XMLD Image Result')
         plt.imshow(image)
         plt.pause(0.5)
 
     def padding_solver(self):
-
+        # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
         new_size = max([array.shape for array in self.dichroism_images])
         for i in range(0, len(self.dichroism_images)):
             array = self.dichroism_images[i]
@@ -163,19 +199,20 @@ class RapidXMLD:
 
 
 if __name__ == '__main__':
+    # Choose a normalisation image to use
     norm_path = os.path.abspath(filedialog.askopenfilename(
         filetypes=[('Tiff Image', '.tif'), ('All Files)', '*')],
         title='Select the Normalisation image file processed with NormalisationImageProcessor'))
 
+    # Selects folders (Have to do this outside the app because of QApplication technicalities (it errors when
+    # created inside an object)
     app = QApplication(sys.argv)
     ex = MultiDirectoryFileDialog()
     ex.show()
     app.exec_()
     directories = [os.path.abspath(path) for path in ex.selectedFiles()[1:]]
-
-    # norm_path = os.path.abspath('D:\Diamond Data Processing Oct 2020\Data\Processed\M_\M_norm_264021.tif')
-    # directories = ['D:/Diamond Data Processing Oct 2020/Data/RAW/265040_medipixImage',
-    #                'D:/Diamond Data Processing Oct 2020/Data/RAW/265041_medipixImage',
-    #                'D:/Diamond Data Processing Oct 2020/Data/RAW/265042_medipixImage']
-    # directories = [os.path.abspath(path) for path in directories]
-    processor = RapidXMLD(norm_path, directories, True, False)
+    app.quit()
+    # Specify options. By default XMCD and Plotting are both false
+    plotting = False
+    XMCD = False
+    processor = RapidXMLD(norm_path, directories, plotting, XMCD)
