@@ -12,7 +12,6 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
 from matplotlib.figure import Figure
 
 import tkinter as tk
-from tkinter import ttk
 import Registration
 
 
