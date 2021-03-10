@@ -202,7 +202,7 @@ if __name__ == '__main__':
     # Specify options. By default XMCD and Plotting are both false
     plotting = False
     XMCD = False
-    for arg in sys.argv:
+    for i, arg in sys.argv:
         if arg == '-xmcd' or arg == '-XMCD':
             XMCD = True
     processor = RapidXMLD(root, norm_path, directories, plotting, XMCD)
