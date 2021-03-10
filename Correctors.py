@@ -12,6 +12,7 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
 from matplotlib.figure import Figure
 
 import tkinter as tk
+from tkinter import ttk
 import Registration
 
 
@@ -239,7 +240,7 @@ class StackPlotter:
         self.root.withdraw()
         self.isRunning = False
 
-    def plot_stack(self, stack, title=""):
+    def plot_stack(self, stack, title="", button_txt="Continue"):
         self.root.wm_title(title)
         if self.tracker is None:
             fig = Figure(figsize=(5, 4), dpi=100)
@@ -251,12 +252,13 @@ class StackPlotter:
             self.slider = tk.Scale(self.root, from_=0, to=stack.shape[0] - 1, orient=tk.HORIZONTAL,
                               command=self.tracker.onscroll)
             self.slider.pack(fill=tk.X)
-            self.cont_button_text.set("Continue")
+
             cont_button = tk.Button(self.root, command=self.GUI_pause_action, textvariable=self.cont_button_text)
+            self.cont_button_text.set(button_txt)
             cont_button.pack()
         else:
             self.tracker.replace(stack)
-            self.cont_button_text.set("Continue")
+            self.cont_button_text.set(button_txt)
             self.slider.set(0)
 
         self.isRunning = False

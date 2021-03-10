@@ -47,7 +47,7 @@ class MultiDirectoryFileDialog(QFileDialog):
 
 class RapidXMLD:
 
-    def __init__(self, norm_path, dir_paths, plotting=False, xmcd=False):
+    def __init__(self, root,  norm_path, dir_paths, plotting=False, xmcd=False):
         """
         This class applies multiple corrections to XMLD/XMCD images taken at i10 at diamond. It loads a normalisation
         image to use with all images that are processed and has a built in bad pixel image which much be changed
@@ -63,13 +63,11 @@ class RapidXMLD:
         :param plotting: Do you want
         :param xmcd:
         """
-        self.root = tk.Tk()
-        self.root.wm_title('Root Window')
         self.closed = False
         self.corrector = MediPixCorrector()
         self.driftCorrector = DriftCorrector(0, -1, 1, 1, 250, 3, 0.5)
         self.load_norm(norm_path)
-        self.plotter = StackPlotter(self.root)
+        self.plotter = StackPlotter(root)
         self.dichroism_images = []
         self.xmcd = xmcd
 
@@ -95,7 +93,7 @@ class RapidXMLD:
             self.dichroism_images.append(dichroism_image)
         self.padding_solver()
         self.save_dichroisms(self.dichroism_images, dir_paths)
-        self.plotter.plot_stack(np.array(self.dichroism_images), "Dichroism Images")
+        self.plotter.plot_stack(np.array(self.dichroism_images), "Dichroism Images", "Save Results")
 
     def load_norm(self, filepath):
         # Just loads the normalisation image
@@ -200,6 +198,7 @@ class RapidXMLD:
 
 if __name__ == '__main__':
     # Choose a normalisation image to use
+    root = tk.Tk()
     norm_path = os.path.abspath(filedialog.askopenfilename(
         filetypes=[('Tiff Image', '.tif'), ('All Files)', '*')],
         title='Select the Normalisation image file processed with NormalisationImageProcessor'))
@@ -213,6 +212,6 @@ if __name__ == '__main__':
     directories = [os.path.abspath(path) for path in ex.selectedFiles()[1:]]
     app.quit()
     # Specify options. By default XMCD and Plotting are both false
-    plotting = False
+    plotting = True
     XMCD = False
-    processor = RapidXMLD(norm_path, directories, plotting, XMCD)
+    processor = RapidXMLD(root, norm_path, directories, plotting, XMCD)
