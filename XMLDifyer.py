@@ -47,7 +47,7 @@ class MultiDirectoryFileDialog(QFileDialog):
 
 class RapidXMLD:
 
-    def __init__(self, root,  norm_path, dir_paths, plotting=False, xmcd=False):
+    def __init__(self, root, norm_path, dir_paths, plotting=False, xmcd=False):
         """
         This class applies multiple corrections to XMLD/XMCD images taken at i10 at diamond. It loads a normalisation
         image to use with all images that are processed and has a built in bad pixel image which much be changed
@@ -149,11 +149,15 @@ class RapidXMLD:
         second_half = np.mean(self.results[n // 2:, :, :], axis=0)
 
         meaner = np.array([[0.125, 0.125, 0.125], [0.125, 0, 0.125], [0.125, 0.125, 0.125]])
-        meaned = convolve2d(first_half, meaner, mode='same')
-        first_half[first_half <= 0.1] = meaned[first_half <= 0.1]
+        while np.sum(first_half == 0) > 0:
+            print(np.sum(first_half == 0))
+            meaned = convolve2d(first_half, meaner, mode='same')
+            first_half[first_half == 0] = meaned[first_half == 0]
 
-        meaned = convolve2d(second_half, meaner, mode='same')
-        second_half[second_half <= 0.1] = meaned[second_half <= 0.1]
+        while np.sum(second_half == 0) > 0:
+            print(np.sum(second_half == 0))
+            meaned = convolve2d(second_half, meaner, mode='same')
+            second_half[second_half == 0] = meaned[second_half == 0]
 
         result = (first_half - second_half) / (first_half + second_half)
         return result
