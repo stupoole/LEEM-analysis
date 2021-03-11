@@ -1,20 +1,13 @@
 import numpy as np
 import os
-import numba
 import time
 
-import dask
 import dask.array as da
 import dask.array.image as daim
-from dask.delayed import delayed
 from dask.distributed import Client, LocalCluster
 
-from scipy.optimize import least_squares
 import scipy.ndimage as ndi
-import scipy.sparse as sp
-from scipy.interpolate import interp1d
 
-from skimage import filters
 from skimage.io import imsave as sk_imsave
 
 import tkinter as tk
@@ -27,9 +20,6 @@ from matplotlib.figure import Figure
 
 import Registration
 from Correctors import ScrollBarImagePlot
-
-
-
 
 # Does not have access to self to define this dtype out and fails at infer dtype.
 @da.as_gufunc(signature="(i,j),(2)->(i,j)", output_dtypes=np.float32, vectorize=True)
