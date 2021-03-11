@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import sys
 import dask.array.image as daim
 from scipy.signal import convolve2d
 from tkinter import filedialog
