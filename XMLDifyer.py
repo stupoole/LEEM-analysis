@@ -49,6 +49,7 @@ class RapidXMLD:
 
     def __init__(self, root, norm_path, dir_paths, plotting=False, xmcd=False):
         """
+
         This class applies multiple corrections to XMLD/XMCD images taken at i10 at diamond. It loads a normalisation
         image to use with all images that are processed and has a built in bad pixel image which much be changed
         manually. The dir_paths variable is a list of folders of raw images from the detector. These folders will be
@@ -58,17 +59,21 @@ class RapidXMLD:
         The XMLD images are saved to make it convenient to load a batch of results. To do this, the name of the first
         folder of images is used as the folder of results (call it folder_1). The resulting XMLD/XMCD images from
         folder_n are saved up one folder from RAW and in XMLD/folder_1/folder_n.tif
+        :param root:
         :param norm_path: Normalisation image path
         :param dir_paths: Folders to load images from
-        :param plotting: Do you want
-        :param xmcd:
+        :param plotting: Do you want to plot intermediate previews for each step?
+        :param xmcd: Calculate XMCD? if false, calculates XMLD
         """
         self.closed = False
+        self.original = None
+        self.norm = None
         self.corrector = MediPixCorrector()
         self.driftCorrector = DriftCorrector(0, -1, 1, 1, 250, 3, 0.5)
         self.load_norm(norm_path)
         self.plotter = StackPlotter(root)
         self.dichroism_images = []
+        self.intensity_images = []
         self.xmcd = xmcd
 
         for folder in dir_paths:
@@ -84,15 +89,17 @@ class RapidXMLD:
                 self.plotter.plot_stack(self.results, 'Aligned ' + folder.split(os.sep)[-1])
 
             if xmcd:
-                dichroism_image = self.apply_xmcd()
+                dichroism_image, intensity_image = self.apply_xmcd()
             else:
-                dichroism_image = self.apply_xmld()
+                dichroism_image, intensity_image = self.apply_xmld()
             if plotting:
                 self.plot_single(dichroism_image)
             self.save_stack(self.results, folder)
             self.dichroism_images.append(dichroism_image)
+            self.intensity_images.append(intensity_image)
         self.padding_solver()
         self.save_dichroisms(self.dichroism_images, dir_paths)
+        self.save_intensities(self.intensity_images, dir_paths)
         self.plotter.plot_stack(np.array(self.dichroism_images), "Dichroism Images", "Save Results")
 
     def load_norm(self, filepath):
@@ -108,21 +115,40 @@ class RapidXMLD:
         self.original = daim.imread(os.path.join(load_directory, '*.tif')).compute()
 
     def save_dichroisms(self, stack, dir_paths):
-        # Saves a single dichroism result. If you load 20 images, they are all saved in a folder
+        # Saves the stack of dichroism results. If you load 20 images, they are all saved in a folder
         # /../XMLD/<dir_paths[0]>/<dir_paths[i]>_xmld.tif"
         if self.xmcd:
             mode = 'XMCD'
         else:
             mode = 'XMLD'
 
-        root = Path(dir_paths[0])
-        root = str(root.parents[1].joinpath(mode).joinpath(root.parts[-1])).replace('_medipixImage', '_batch')
-        if not os.path.isdir(root):
-            os.mkdir(root)
+        root_dir = Path(dir_paths[0])
+        root_dir = str(root_dir.parents[1].joinpath(mode).joinpath(root_dir.parts[-1])).replace('_medipixImage',
+                                                                                                '_batch')
+        if not os.path.isdir(root_dir):
+            os.makedirs(root_dir)
 
         for filename, image in zip(dir_paths, stack):
             filename = Path(filename).parts[-1]
-            target = os.path.join(root, str(filename).replace('_medipixImage', '_XMLD.tif'))
+            target = os.path.join(root_dir, str(filename).replace('_medipixImage', '_XMLD.tif'))
+            image = image.astype('float32')
+            sk_imsave(target, image)
+            print(f'Image saved as {target}')
+
+    def save_intensities(self, stack, dir_paths):
+        # Saves a single dichroism result. If you load 20 images, they are all saved in a folder
+        # /../XMLD/<dir_paths[0]>/<dir_paths[i]>_xmld.tif"
+
+        mode = 'Intensity'
+        root_dir = Path(dir_paths[0])
+        root_dir = str(root_dir.parents[1].joinpath(mode).joinpath(root_dir.parts[-1])).replace('_medipixImage',
+                                                                                                '_batch')
+        if not os.path.isdir(root_dir):
+            os.makedirs(root_dir)
+
+        for filename, image in zip(dir_paths, stack):
+            filename = Path(filename).parts[-1]
+            target = os.path.join(root_dir, str(filename).replace('_medipixImage', '_Intensity.tif'))
             image = image.astype('float32')
             sk_imsave(target, image)
             print(f'Image saved as {target}')
@@ -132,7 +158,7 @@ class RapidXMLD:
         path = Path(dirname)
         path = path.parents[1].joinpath('RAW_aligned').joinpath(path.parts[-1])
         if not os.path.isdir(path):
-            os.mkdir(path)
+            os.makedirs(path)
         file_list = os.listdir(dirname)
         file_list = [file for file in file_list if file[-4] == "."]
         file_list = [file.replace('.tif', '_corrected.tif') for file in file_list]
@@ -159,8 +185,9 @@ class RapidXMLD:
             meaned = convolve2d(second_half, meaner, mode='same')
             second_half[second_half == 0] = meaned[second_half == 0]
 
-        result = (first_half - second_half) / (first_half + second_half)
-        return result
+        xmld = (first_half - second_half) / (first_half + second_half)
+        intensity = (first_half + second_half)
+        return xmld, intensity
 
     def apply_xmcd(self):
         # Same as for xmld but the images are normalised with an on edge image. mean(a/b - c/d) / (a/b + c/d)
@@ -177,10 +204,8 @@ class RapidXMLD:
         second_half[second_half <= 0.1] = meaned[second_half <= 0.1]
 
         result = np.mean(first_half - second_half, axis=0) / (first_half + second_half)
-        plt.figure('XMCD Image Result')
-        plt.imshow(result)
-        plt.pause(0.5)
-        return result
+        intensity = (first_half + second_half)
+        return result, intensity
 
     def plot_single(self, image):
         # Just plot an image.
