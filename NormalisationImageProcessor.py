@@ -1,8 +1,10 @@
+import os
 import numpy as np
 import dask.array.image as daim
 from scipy.signal import convolve2d
 from tkinter import filedialog
 from skimage.io import imsave as sk_imsave
+
 
 class NormalisationImageProcessor:
 
@@ -65,7 +67,8 @@ class NormalisationImageProcessor:
             meaner = np.array([[0, 0.25, 0], [0.25, 0, 0.25], [0, 0.25, 0]])
             meaned = convolve2d(image, meaner, mode='same')
             image[self.bad_pixel_image == 1] = meaned[self.bad_pixel_image == 1]
-            image[image > 4000] = meaned[image > 4000]
+            image[image > 3000] = meaned[image > 3000]
+            image[image < 0.1] = meaned[image < 0.1]
             self.stack[i] = image
 
     def __make_norm(self):
@@ -75,7 +78,9 @@ class NormalisationImageProcessor:
 
 if __name__ == '__main__':
     corrector = NormalisationImageProcessor()
-    corrector.set_stack(filedialog.askdirectory(title='Select a folder containing Normalisation image file(s)'))
+    load_dir = filedialog.askdirectory(title='Select a folder containing Normalisation image file(s)')
+    stack = daim.imread(os.path.join(load_dir, '*.tif')).compute()
+    corrector.set_stack(stack)
 
     normImage = corrector.apply_corrections()
     save_name = filedialog.asksaveasfilename(title='Specify save name for norm image in a new folder',
@@ -84,5 +89,3 @@ if __name__ == '__main__':
     if save_name:
         print(f'Norm image saved as {save_name}')
         sk_imsave(save_name, normImage)
-
-
