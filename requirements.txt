@@ -1,4 +1,4 @@
-PIL
+pillow
 python >= 3.6
 
 numpy
@@ -10,6 +10,12 @@ distributed
 xarray
 scikit-image
 netcdf4
+numba
+scipy
+scikit-image
+tk
+matplotlib
+PyQt
 
 # Some optimization in the drift correction algorithm
 numba
@@ -19,5 +25,3 @@ scikit-learn
 dask-ml
 zarr
 
-# For contribution
-jupytext

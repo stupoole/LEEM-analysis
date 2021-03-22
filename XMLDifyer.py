@@ -215,7 +215,8 @@ class RapidXMLD:
 
     def padding_solver(self):
         # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
-        new_size = max([array.shape for array in self.dichroism_images])
+        shapes = [list(array.shape) for array in self.dichroism_images]
+        new_size = (max(shapes[0]), max(shapes[1]))
         for i in range(0, len(self.dichroism_images)):
             array = self.dichroism_images[i]
             pads = np.array(new_size) - np.array(array.shape)
@@ -238,7 +239,7 @@ if __name__ == '__main__':
     ex = MultiDirectoryFileDialog()
     ex.show()
     app.exec_()
-    directories = [os.path.abspath(path) for path in ex.selectedFiles()[1:]]
+    directories = [os.path.abspath(path) for path in ex.selectedFiles() if path.find('medipixImage') != -1]
     app.quit()
     # Specify options. By default XMCD and Plotting are both false
     plotting = False
