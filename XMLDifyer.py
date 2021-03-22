@@ -237,7 +237,7 @@ if __name__ == '__main__':
     # created inside an object)
     app = QApplication(sys.argv)
     ex = MultiDirectoryFileDialog()
-    ex.setDirectory(norm_path)
+    ex.setDirectory(str(Path(norm_path).parent))
     ex.show()
     app.exec_()
     directories = [os.path.abspath(path) for path in ex.selectedFiles() if path.find('medipixImage') != -1]
