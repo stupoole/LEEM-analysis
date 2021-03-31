@@ -16,6 +16,7 @@ from scipy.interpolate import interp1d
 
 from skimage import filters
 from skimage.io import imsave as sk_imsave
+from skimage.io import imread as sk_imread
 
 import tkinter as tk
 from tkinter import filedialog
@@ -86,13 +87,18 @@ class DriftCorrector:
         self.load_directory = filedialog.askdirectory(title='Select a folder containing image files')
         file_list = os.listdir(self.load_directory)
         file_list = [file for file in file_list if file[-4:] == ".tif"]
-        for file in file_list:
-            print("Loading " + os.path.join(self.load_directory, file))
+        self.original = list()
         if not self.load_directory == "":
-            self.original = daim.imread(os.path.join(self.load_directory, '*.tif'))
+            for i in range(0, len(file_list)):
+                print("Loading " + os.path.join(self.load_directory, file_list[i]))
+                self.original.append(sk_imread(os.path.join(self.load_directory, file_list[i]), as_gray=True))
+            self.padding_solver()
+            #
+            # self.original = daim.imread(os.path.join(self.load_directory, '*.tif'))
             self.plot_original()
         else:
             self.closed = True
+
 
     def plot_original(self):
         self.root.wm_title("Original Images")
@@ -100,7 +106,7 @@ class DriftCorrector:
 
         fig = Figure(figsize=(5, 4), dpi=100)
         ax = fig.subplots(1, 1)
-        self.tracker = ScrollBarImagePlot(fig, ax, self.original)
+        self.tracker = ScrollBarImagePlot(fig, ax, self.original.compute())
         canvas = FigureCanvasTkAgg(fig, master=self.root)  # A tk.DrawingArea.
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -277,6 +283,18 @@ class DriftCorrector:
         plt.show()
         return min_normed_weight
 
+    def padding_solver(self):
+        # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
+        shapes = list(zip(*[list(array.shape) for array in self.original]))
+        new_size = (max(shapes[0]), max(shapes[1]))
+        for i in range(0, len(self.original)):
+            array = self.original[i]
+            pads = np.array(new_size) - np.array(array.shape)
+            if pads.sum() > 0:
+                array = np.pad(array, (((pads[0] + 1) // 2, pads[0] // 2), ((pads[1] + 1) // 2, pads[1] // 2)),
+                               'constant', constant_values=0)
+                self.original[i] = array
+        self.original = da.from_array(np.array(self.original))
 
 if __name__ == '__main__':
     cluster = LocalCluster(n_workers=1, threads_per_worker=4)
