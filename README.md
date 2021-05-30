@@ -1,1 +1,2 @@
-
+# LEEM-analysis
+Diamond Light Source I06 PEEM image analysis scripts to replace the outdated and slow igor routines. Actual algorithm kindly provided by Tobias de Jong (@TAdeJong on github). I have replaced the jupyter notebook approach with a basic GUI using normal python scripts. This script probably won't be helpful with LEEM...
