@@ -151,7 +151,7 @@ class RapidXMLD:
         mode = 'Intensity'
         target_dir = Path(dir_paths[0])
         target_dir = str(target_dir.parents[1].joinpath(mode).joinpath(target_dir.parts[-1])).replace('_medipixImage',
-                                                                                                '_batch')
+                                                                                                      '_batch')
         if not os.path.isdir(target_dir):
             os.makedirs(target_dir)
 
@@ -202,8 +202,8 @@ class RapidXMLD:
         # Same as for xmld but the images are normalised with an on edge image. mean(a/b - c/d) / (a/b + c/d)
         # Fixes zero values as average of surrounds
         n, x, y = self.results.shape
-        first_half = self.results[0:n // 4, :, :] / self.results[n // 4:n // 2, :, :]
-        second_half = self.results[n // 2:3 * n // 4, :, :] / self.results[3 * n // 4:, :, :]
+        first_half = np.mean(self.results[0:n // 4, :, :] / self.results[n // 4:n // 2, :, :], axis=0)
+        second_half = np.mean(self.results[n // 2:3 * n // 4, :, :] / self.results[3 * n // 4:, :, :], axis=0)
 
         meaner = np.array([[0.125, 0.125, 0.125], [0.125, 0, 0.125], [0.125, 0.125, 0.125]])
         meaned = convolve2d(first_half, meaner, mode='same')
@@ -212,9 +212,9 @@ class RapidXMLD:
         meaned = convolve2d(second_half, meaner, mode='same')
         second_half[second_half <= 0.1] = meaned[second_half <= 0.1]
 
-        result = np.mean(first_half - second_half, axis=0) / (first_half + second_half)
+        xmcd = np.mean(first_half - second_half, axis=0) / (first_half + second_half)
         intensity = (first_half + second_half)
-        return result, intensity
+        return xmcd, intensity
 
     def plot_single(self, image):
         # Just plot an image.

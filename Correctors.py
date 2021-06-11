@@ -165,11 +165,12 @@ class MediPixCorrector:
         for i in range(self.stack.shape[0]):
             image = self.stack[i]
             meaner = np.array([[0.125, 0.125, 0.125], [0.125, 0, 0.125], [0.125, 0.125, 0.125]])
-            meaned = convolve2d(image, meaner, mode='same')
-            if self.bad_pixel_image.shape == image.shape:
-                image[self.bad_pixel_image == 1] = meaned[self.bad_pixel_image == 1]
-            image[image > 3000] = meaned[image > 3000]
-            image[image <= 0.1] = meaned[image <= 0.1]
+            while np.sum(image < 0.1) > 0 or np.sum(image > 5000) > 0:
+                meaned = convolve2d(image, meaner, mode='same')
+                if self.bad_pixel_image.shape == image.shape:
+                    image[self.bad_pixel_image == 1] = meaned[self.bad_pixel_image == 1]
+                image[image > 5000] = meaned[image > 5000]
+                image[image < 0.1] = meaned[image < 0.1]
             self.stack[i] = image
 
     def __make_norm(self):
