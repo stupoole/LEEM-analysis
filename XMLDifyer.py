@@ -47,7 +47,7 @@ class MultiDirectoryFileDialog(QFileDialog):
 
 class RapidXMLD:
 
-    def __init__(self, root, norm_path, dir_paths, plotting=False, xmcd=False):
+    def __init__(self, root, norm_path, dir_paths, plotting=False, xmcd=False, PCO=False):
         """
 
         This class applies multiple corrections to XMLD/XMCD images taken at i10 at diamond. It loads a normalisation
@@ -75,6 +75,7 @@ class RapidXMLD:
         self.dichroism_images = []
         self.intensity_images = []
         self.xmcd = xmcd
+        self.PCO = PCO
 
         for folder in dir_paths:
             self.load_images(folder)
@@ -122,15 +123,20 @@ class RapidXMLD:
         else:
             mode = 'XMLD'
 
+        if self.PCO == True:
+            searchString = '_PCOImage'
+        else:
+            searchString = '_medipixImage'
+
         root_dir = Path(dir_paths[0])
-        root_dir = str(root_dir.parents[1].joinpath(mode).joinpath(root_dir.parts[-1])).replace('_medipixImage',
+        root_dir = str(root_dir.parents[1].joinpath(mode).joinpath(root_dir.parts[-1])).replace(searchString,
                                                                                                 '_batch')
         if not os.path.isdir(root_dir):
             os.makedirs(root_dir)
 
         for filename, image in zip(dir_paths, stack):
             filename = Path(filename).parts[-1]
-            target = os.path.join(root_dir, str(filename).replace('_medipixImage', '_XMLD.tif'))
+            target = os.path.join(root_dir, str(filename).replace(searchString, '_' + mode + '.tif'))
             image = image.astype('float32')
             sk_imsave(target, image)
             print(f'Image saved as {target}')
@@ -138,17 +144,20 @@ class RapidXMLD:
     def save_intensities(self, stack, dir_paths):
         # Saves a single dichroism result. If you load 20 images, they are all saved in a folder
         # /../XMLD/<dir_paths[0]>/<dir_paths[i]>_xmld.tif"
-
+        if self.PCO == True:
+            searchString = '_PCOImage'
+        else:
+            searchString = '_medipixImage'
         mode = 'Intensity'
         root_dir = Path(dir_paths[0])
-        root_dir = str(root_dir.parents[1].joinpath(mode).joinpath(root_dir.parts[-1])).replace('_medipixImage',
+        root_dir = str(root_dir.parents[1].joinpath(mode).joinpath(root_dir.parts[-1])).replace(searchString,
                                                                                                 '_batch')
         if not os.path.isdir(root_dir):
             os.makedirs(root_dir)
 
         for filename, image in zip(dir_paths, stack):
             filename = Path(filename).parts[-1]
-            target = os.path.join(root_dir, str(filename).replace('_medipixImage', '_Intensity.tif'))
+            target = os.path.join(root_dir, str(filename).replace(searchString, '_' + mode + '.tif'))
             image = image.astype('float32')
             sk_imsave(target, image)
             print(f'Image saved as {target}')
@@ -215,7 +224,7 @@ class RapidXMLD:
 
     def padding_solver(self):
         # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
-        shapes = [list(array.shape) for array in self.dichroism_images]
+        shapes = list(zip(*[list(array.shape) for array in self.dichroism_images]))
         new_size = (max(shapes[0]), max(shapes[1]))
         for i in range(0, len(self.dichroism_images)):
             array = self.dichroism_images[i]
@@ -237,15 +246,20 @@ if __name__ == '__main__':
     # created inside an object)
     app = QApplication(sys.argv)
     ex = MultiDirectoryFileDialog()
-    ex.setDirectory(norm_path)
+    ex.setDirectory(str(Path(norm_path).parent))
     ex.show()
     app.exec_()
-    directories = [os.path.abspath(path) for path in ex.selectedFiles() if path.find('medipixImage') != -1]
+    directories = [os.path.abspath(path) for path in ex.selectedFiles() if
+                   (path.find('medipixImage') != -1 or path.find('PCOImage') != -1)]
+
     app.quit()
     # Specify options. By default XMCD and Plotting are both false
     plotting = False
     XMCD = False
+    PCO = False
+    if directories[0].find('PCOImage') != -1:
+        PCO = True
     for arg in sys.argv:
         if arg == '-xmcd' or arg == '-XMCD':
             XMCD = True
-    processor = RapidXMLD(root, norm_path, directories, plotting, XMCD)
+    processor = RapidXMLD(root, norm_path, directories, plotting, XMCD, PCO)
