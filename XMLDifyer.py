@@ -262,4 +262,6 @@ if __name__ == '__main__':
     for arg in sys.argv:
         if arg == '-xmcd' or arg == '-XMCD':
             XMCD = True
+        if arg == '-PCO' or arg == '-pco':
+            PCO = True
     processor = RapidXMLD(root, norm_path, directories, plotting, XMCD, PCO)
