@@ -238,7 +238,7 @@ class RapidXMLD:
 if __name__ == '__main__':
     # Choose a normalisation image to use
     root = tk.Tk()
-    norm_path = os.path.abspath(filedialog.askopenfilenames(
+    norm_path = os.path.abspath(filedialog.askopenfilename(
         filetypes=[('Tiff Image', '.tif'), ('All Files)', '*')],
         title='Select the Normalisation image file processed with NormalisationImageProcessor'))
 
