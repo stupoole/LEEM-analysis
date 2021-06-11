@@ -300,5 +300,5 @@ if __name__ == '__main__':
     cluster = LocalCluster(n_workers=1, threads_per_worker=4)
     client = Client(cluster)
     client.upload_file('Registration.py')
-    dc = DriftCorrector(0, -1, 1, 1, 500, 3, 0.5)
+    dc = DriftCorrector(0, -1, 1, 1, 250, 3, 0.5)
     dc.apply_corrections()
