@@ -166,7 +166,8 @@ class MediPixCorrector:
             image = self.stack[i]
             meaner = np.array([[0.125, 0.125, 0.125], [0.125, 0, 0.125], [0.125, 0.125, 0.125]])
             meaned = convolve2d(image, meaner, mode='same')
-            image[self.bad_pixel_image == 1] = meaned[self.bad_pixel_image == 1]
+            if self.bad_pixel_image.shape == image.shape:
+                image[self.bad_pixel_image == 1] = meaned[self.bad_pixel_image == 1]
             image[image > 3000] = meaned[image > 3000]
             image[image <= 0.1] = meaned[image <= 0.1]
             self.stack[i] = image
