@@ -149,15 +149,15 @@ class RapidXMLD:
         else:
             searchString = '_medipixImage'
         mode = 'Intensity'
-        root_dir = Path(dir_paths[0])
-        root_dir = str(root_dir.parents[1].joinpath(mode).joinpath(root_dir.parts[-1])).replace(searchString,
+        target_dir = Path(dir_paths[0])
+        target_dir = str(target_dir.parents[1].joinpath(mode).joinpath(target_dir.parts[-1])).replace('_medipixImage',
                                                                                                 '_batch')
-        if not os.path.isdir(root_dir):
-            os.makedirs(root_dir)
+        if not os.path.isdir(target_dir):
+            os.makedirs(target_dir)
 
         for filename, image in zip(dir_paths, stack):
             filename = Path(filename).parts[-1]
-            target = os.path.join(root_dir, str(filename).replace(searchString, '_' + mode + '.tif'))
+            target = os.path.join(target_dir, str(filename).replace('_medipixImage', '_Intensity.tif'))
             image = image.astype('float32')
             sk_imsave(target, image)
             print(f'Image saved as {target}')
@@ -238,7 +238,7 @@ class RapidXMLD:
 if __name__ == '__main__':
     # Choose a normalisation image to use
     root = tk.Tk()
-    norm_path = os.path.abspath(filedialog.askopenfilename(
+    norm_path = os.path.abspath(filedialog.askopenfilenames(
         filetypes=[('Tiff Image', '.tif'), ('All Files)', '*')],
         title='Select the Normalisation image file processed with NormalisationImageProcessor'))
 
