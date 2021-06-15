@@ -199,21 +199,19 @@ class RapidXMLD:
         return xmld, intensity
 
     def apply_xmcd(self):
-        # Same as for xmld but the images are normalised with an on edge image. mean(a/b - c/d) / (a/b + c/d)
-        # Fixes zero values as average of surrounds
+        threshold = 0.1
         n, x, y = self.results.shape
-        first_half = np.mean(self.results[0:n // 4, :, :] / self.results[n // 4:n // 2, :, :], axis=0)
-        second_half = np.mean(self.results[n // 2:3 * n // 4, :, :] / self.results[3 * n // 4:, :, :], axis=0)
-
-        meaner = np.array([[0.125, 0.125, 0.125], [0.125, 0, 0.125], [0.125, 0.125, 0.125]])
-        meaned = convolve2d(first_half, meaner, mode='same')
-        first_half[first_half <= 0.1] = meaned[first_half <= 0.1]
-
-        meaned = convolve2d(second_half, meaner, mode='same')
-        second_half[second_half <= 0.1] = meaned[second_half <= 0.1]
-
-        xmcd = np.mean(first_half - second_half, axis=0) / (first_half + second_half)
+        temp_stack = np.abs(self.results) + 0.01 * (self.results == 0)  # remove negatives
+        first_half = (np.mean(temp_stack[0:n // 4, :, :], axis=0) +
+                      np.mean(temp_stack[n // 4:n // 2, :, :], axis=0)) / 2
+        second_half = (np.mean(temp_stack[n // 2:(3 * n) // 4, :, :], axis=0) +
+                       np.mean(temp_stack[3 * n // 4:, :, :], axis=0)) / 2
         intensity = (first_half + second_half)
+
+        threshold_mask = intensity > threshold  # try to ignore regions outside sample edges
+
+        xmcd = (first_half - second_half) / (first_half + second_half + 10000 * threshold_mask)
+
         return xmcd, intensity
 
     def plot_single(self, image):
