@@ -10,6 +10,7 @@ from scipy.signal import convolve2d
 
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 import tkinter as tk
 import Registration
@@ -183,6 +184,7 @@ class MediPixCorrector:
 
 class ScrollBarImagePlot(object):
     def __init__(self, fig, ax, X):
+        self.sigma = 2
         self.fig = fig
         self.ax = ax
 
@@ -190,7 +192,14 @@ class ScrollBarImagePlot(object):
         self.slices, rows, cols = X.shape
         self.ind = 0
 
-        self.im = self.ax.imshow(X[self.ind, :, :].T, cmap='gray', vmin=self.X.min(), vmax=self.X.max())
+        my_max = np.mean(self.X[self.ind, :, :]) + self.sigma * np.std(self.X[self.ind, :, :])
+        my_min = np.mean(self.X[self.ind, :, :]) - self.sigma * np.std(self.X[self.ind, :, :])
+
+        self.im = self.ax.imshow(self.X[self.ind, :, :].T,
+                                 cmap='gray',
+                                 vmin=my_min,
+                                 vmax=my_max
+                                 )
         self.update()
 
     def onscroll(self, new_val):
@@ -199,6 +208,9 @@ class ScrollBarImagePlot(object):
 
     def update(self):
         self.im.set_data(self.X[self.ind, :, :].T)
+        my_max = np.mean(self.X[self.ind, :, :]) + self.sigma * np.std(self.X[self.ind, :, :])
+        my_min = np.mean(self.X[self.ind, :, :]) - self.sigma * np.std(self.X[self.ind, :, :])
+        self.im.set_clim(vmin=my_min, vmax=my_max)
         self.ax.set_ylabel('slice %s' % self.ind)
         self.fig.canvas.draw()
 
@@ -251,7 +263,7 @@ class StackPlotter:
             canvas.draw()
             canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
             self.slider = tk.Scale(self.root, from_=0, to=stack.shape[0] - 1, orient=tk.HORIZONTAL,
-                              command=self.tracker.onscroll)
+                                   command=self.tracker.onscroll)
             self.slider.pack(fill=tk.X)
 
             cont_button = tk.Button(self.root, command=self.GUI_pause_action, textvariable=self.cont_button_text)
