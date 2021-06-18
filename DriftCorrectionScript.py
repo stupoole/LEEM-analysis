@@ -27,9 +27,7 @@ import matplotlib as mpl
 from matplotlib.figure import Figure
 
 import Registration
-from Correctors import ScrollBarImagePlot
-
-
+from Correctors import ScrollBarImagePlot, padding_solver
 
 
 # Does not have access to self to define this dtype out and fails at infer dtype.
@@ -92,13 +90,12 @@ class DriftCorrector:
             for i in range(0, len(file_list)):
                 print("Loading " + os.path.join(self.load_directory, file_list[i]))
                 self.original.append(sk_imread(os.path.join(self.load_directory, file_list[i]), as_gray=True))
-            self.padding_solver()
+            self.original = padding_solver(self.original)
             #
             # self.original = daim.imread(os.path.join(self.load_directory, '*.tif'))
             self.plot_original()
         else:
             self.closed = True
-
 
     def plot_original(self):
         self.root.wm_title("Original Images")
@@ -283,18 +280,19 @@ class DriftCorrector:
         plt.show()
         return min_normed_weight
 
-    def padding_solver(self):
-        # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
-        shapes = list(zip(*[list(array.shape) for array in self.original]))
-        new_size = (max(shapes[0]), max(shapes[1]))
-        for i in range(0, len(self.original)):
-            array = self.original[i]
-            pads = np.array(new_size) - np.array(array.shape)
-            if pads.sum() > 0:
-                array = np.pad(array, (((pads[0] + 1) // 2, pads[0] // 2), ((pads[1] + 1) // 2, pads[1] // 2)),
-                               'constant', constant_values=0)
-                self.original[i] = array
-        self.original = da.from_array(np.array(self.original))
+    # def padding_solver(self):
+    #     # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
+    #     shapes = list(zip(*[list(array.shape) for array in self.original]))
+    #     new_size = (max(shapes[0]), max(shapes[1]))
+    #     for i in range(0, len(self.original)):
+    #         array = self.original[i]
+    #         pads = np.array(new_size) - np.array(array.shape)
+    #         if pads.sum() > 0:
+    #             array = np.pad(array, (((pads[0] + 1) // 2, pads[0] // 2), ((pads[1] + 1) // 2, pads[1] // 2)),
+    #                            'constant', constant_values=0)
+    #             self.original[i] = array
+    #     self.original = da.from_array(np.array(self.original))
+
 
 if __name__ == '__main__':
     cluster = LocalCluster(n_workers=1, threads_per_worker=4)

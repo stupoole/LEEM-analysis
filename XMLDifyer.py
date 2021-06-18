@@ -29,7 +29,7 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import QFileDialog, QApplication, QListView, QTreeView, QAbstractItemView
 
-from Correctors import DriftCorrector, StackPlotter, MediPixCorrector
+from Correctors import DriftCorrector, StackPlotter, MediPixCorrector, padding_solver
 
 
 class MultiDirectoryFileDialog(QFileDialog):
@@ -98,7 +98,7 @@ class RapidXMLD:
             self.save_stack(self.results, folder)
             self.dichroism_images.append(dichroism_image)
             self.intensity_images.append(intensity_image)
-        self.padding_solver()
+        self.dichroism_images = padding_solver(self.dichroism_images)
         self.save_dichroisms(self.dichroism_images, dir_paths)
         self.save_intensities(self.intensity_images, dir_paths)
         self.plotter.plot_stack(np.array(self.dichroism_images), "Dichroism Images", "Save Results")
@@ -219,18 +219,6 @@ class RapidXMLD:
         plt.figure('XMLD Image Result')
         plt.imshow(image)
         plt.pause(0.5)
-
-    def padding_solver(self):
-        # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
-        shapes = list(zip(*[list(array.shape) for array in self.dichroism_images]))
-        new_size = (max(shapes[0]), max(shapes[1]))
-        for i in range(0, len(self.dichroism_images)):
-            array = self.dichroism_images[i]
-            pads = np.array(new_size) - np.array(array.shape)
-            if pads.sum() > 0:
-                array = np.pad(array, (((pads[0] + 1) // 2, pads[0] // 2), ((pads[1] + 1) // 2, pads[1] // 2)),
-                               'constant', constant_values=0)
-                self.dichroism_images[i] = array
 
 
 if __name__ == '__main__':

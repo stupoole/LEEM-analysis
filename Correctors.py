@@ -23,6 +23,20 @@ def shift_images(image, shift):
     return ndi.shift(image, shift=shift, order=1)
 
 
+def padding_solver(self, stack):
+    # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
+    shapes = list(zip(*[list(array.shape) for array in stack]))
+    new_size = (max(shapes[0]), max(shapes[1]))
+    for i in range(0, len(stack)):
+        array = stack[i]
+        pads = np.array(new_size) - np.array(array.shape)
+        if pads.sum() > 0:
+            array = np.pad(array, (((pads[0] + 1) // 2, pads[0] // 2), ((pads[1] + 1) // 2, pads[1] // 2)),
+                           'constant', constant_values=0)
+            stack = array
+    return stack
+
+
 class DriftCorrector:
     def __init__(self, start, stop, stride, dE, fftsize, sigma=3, threshold=0.15):
         self.start = start
