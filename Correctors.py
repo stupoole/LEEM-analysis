@@ -23,7 +23,7 @@ def shift_images(image, shift):
     return ndi.shift(image, shift=shift, order=1)
 
 
-def padding_solver(self, stack):
+def padding_solver(stack):
     # Makes all arrays same size to make stacking easier. The padded images are not the images that are saved.
     shapes = list(zip(*[list(array.shape) for array in stack]))
     new_size = (max(shapes[0]), max(shapes[1]))
